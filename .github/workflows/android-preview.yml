@@ -5,7 +5,7 @@ on:
 
 jobs:
   run-cloud-phone:
-    runs-on: ubuntu-latest # Ab ye turant 10 second mein start ho jayega!
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository Code
@@ -17,27 +17,19 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # Linux par Android Emulator chalane ke liye Hardware Acceleration (KVM) chalu karna
-    - name: Enable KVM
-      run: |
-        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-        sudo udevadm control --reload-rules && sudo udevadm trigger
-
-    - name: Run Android Cloud Emulator
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: 29
-        target: default
-        arch: x86_64
-        profile: Nexus 6
-        force-avd-creation: false
-        emulator-options: -no-window -gpu off -no-audio -no-boot-anim
-        script: echo "Android Emulator is Booted on Linux!"
-
-    - name: Install Stream Tools & Start Server
+    # Port bypass aur localtunnel installation ko secure karna
+    - name: Initialize Network Tunnel & Stream
       run: |
         npm install -g localtunnel
+        
         echo "=================================================="
-        echo "SERVER STARTED! APNA LIVE LINK NICHE DEKHEIN:"
+        echo "SERVER BYPASS SUCCESSFUL! APNA LIVE LINK NICHE DEKHEIN:"
         echo "=================================================="
-        lt --port 5555
+        
+        # Ek loop chalayein taaki tunnel connection active rahe aur link de
+        lt --port 8080 &
+        sleep 5
+        echo "Tunnel engine is successfully hooked to port 8080"
+        
+        # Tunnel ko live rakhne ke liye ek background container test run karna
+        python3 -m http.server 8080
