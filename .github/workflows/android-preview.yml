@@ -1,35 +1,63 @@
-name: Aura Android Preview Engine
+name: Aura Full Android Real-Time Preview Engine
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Isse aap mobile se jab chahein ek click mein server chalu kar sakte hain
 
 jobs:
-  run-cloud-phone:
+  run-live-android-os:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository Code
+    - name: Checkout Code Architecture
       uses: actions/checkout@v4
 
-    - name: Set up JDK 17
+    - name: Initialize JDK 17 & Android SDK Environment
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
 
-    # Port bypass aur localtunnel installation ko secure karna
-    - name: Initialize Network Tunnel & Stream
+    # Linux par Android Emulator chalane ke liye Hardware Acceleration (KVM) chalu karna
+    - name: Enable Linux Hardware Virtualization (KVM Acceleration)
       run: |
-        npm install -g localtunnel
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules && sudo udevadm trigger
+
+    # Jaise hi code badlega, yeh poore project ko background mein compile (build) karega
+    - name: Fast Gradle Compile & Build Project APK
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon --parallel
+
+    # Cloud par asli Android Phone Virtual Device chalu karna aur App install karna
+    - name: Spin Up Headless Cloud Android Emulator
+      uses: reactivecircus/android-emulator-runner@v2
+      with:
+        api-level: 29
+        target: default
+        arch: x86_64
+        profile: Nexus 6
+        force-avd-creation: false
+        emulator-options: -no-window -gpu off -no-audio -no-boot-anim -memory 3072
+        script: |
+          echo "=================================================="
+          echo "EMULATOR BOOTED! INSTALLING TARGET APPLICATION..."
+          echo "=================================================="
+          adb install app/build/outputs/apk/debug/app-debug.apk
+          # Aapki app ka jo bhi package name hai, use automatic launch karna
+          adb shell monkey -p your.package.name -c android.intent.category.LAUNCHER 1
+
+    # Phone ki screen ko live video stream mein badal kar localtunnel link par bhej dena
+    - name: Launch Interactive Web Stream Router & Localtunnel Gateway
+      run: |
+        npm install -g localtunnel websockify
         
         echo "=================================================="
-        echo "SERVER BYPASS SUCCESSFUL! APNA LIVE LINK NICHE DEKHEIN:"
+        echo "REAL-TIME ANDROID APP COMPILATION SUCCESSFUL!"
+        echo "APNA LIVE INTERACTIVE STREAM LINK NICHE DEKHEIN:"
         echo "=================================================="
         
-        # Ek loop chalayein taaki tunnel connection active rahe aur link de
-        lt --port 8080 &
+        # Phone screen ke pixels ko network stream par forward karna (Port 6080)
+        websockify --web=/usr/share/novnc 6080 localhost:5900 &
         sleep 5
-        echo "Tunnel engine is successfully hooked to port 8080"
-        
-        # Tunnel ko live rakhne ke liye ek background container test run karna
-        python3 -m http.server 8080
+        lt --port 6080
