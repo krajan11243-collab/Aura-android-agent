@@ -11,27 +11,26 @@ jobs:
     - name: Checkout Code Architecture
       uses: actions/checkout@v4
 
-    - name: Initialize JDK 17 & Node Environment
-      uses: actions/setup-java@v4
+    - name: Initialize Node Environment
+      uses: actions/setup-node@v4
       with:
-        java-version: '17'
-        distribution: 'temurin'
+        node-version: '20'
 
-    # Linux Graphics Display Server ready karna bina kisi android file crash ke
+    # Linux Graphics Display & VNC Server setup bina kisi path issue ke
     - name: Setup Headless GUI Desktop Server
       run: |
         sudo apt-get update
-        sudo apt-get install -y x11vnc xvfb fluxbox websockify
+        sudo apt-get install -y x11vnc xvfb fluxbox
         
-        # Background Display Framebuffer active karna (Resolution 1080x1920)
+        # Virtual Framebuffer screen ready karna (Resolution 1080x1920)
         Xvfb :1 -screen 0 1080x1920x24 &
         export DISPLAY=:1
         fluxbox &
         
-        # Screen mirror engine start karna bina password lock ke
+        # Asli VNC screen stream port 5900 par map karna
         x11vnc -display :1 -nopw -listen localhost -xkb -forever &
 
-    # Instant Tunnel Generator tool run karna
+    # Bina websockify folder error ke, direct port 5900 ko tunnel karna
     - name: Launch Interactive Web Stream Router
       run: |
         npm install -g localtunnel
@@ -41,7 +40,5 @@ jobs:
         echo "APNA LIVE INTERACTIVE LINK NICHE DEKHEIN:"
         echo "=================================================="
         
-        # Port 6080 par dynamic live display streams bind karna
-        websockify --web=/usr/share/novnc 6080 localhost:5900 &
-        sleep 5
-        lt --port 6080
+        # Direct local VNC display handler ko internet link par map karna
+        lt --port 5900
